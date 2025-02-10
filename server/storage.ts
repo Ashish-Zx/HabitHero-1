@@ -1,8 +1,8 @@
 import session from 'express-session';
 import pgSession from 'connect-pg-simple';
 import { eq } from 'drizzle-orm';
-import { users } from '@shared/schema';
-import type { User, InsertUser } from '@shared/schema';
+import { users, habits } from '@shared/schema';
+import type { User, InsertUser, Habit } from '@shared/schema';
 import { db, pool } from './db';
 
 class DatabaseStorage {
@@ -29,6 +29,13 @@ class DatabaseStorage {
 
   async createUser(user: InsertUser): Promise<User> {
     const [result] = await db.insert(users).values(user).returning();
+    return result;
+  }
+
+  async getHabitsByUserId(userId: number): Promise<Habit[]> {
+    const result = await db.select()
+      .from(habits)
+      .where(eq(habits.userId, userId));
     return result;
   }
 }
