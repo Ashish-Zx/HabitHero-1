@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertHabitSchema } from "@shared/schema";
+import { insertHabitSchema, type Habit } from "@shared/schema";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { HabitCard } from "@/components/habit-card";
@@ -16,12 +16,13 @@ import { StreakChart } from "@/components/streak-chart";
 import { useToast } from "@/hooks/use-toast";
 import { ThemeToggle } from "@/components/theme-toggle";
 import * as z from 'zod';
-import {Habit} from "@shared/types"
-
+import { useState } from 'react';
 
 export default function HomePage() {
   const { user, logoutMutation } = useAuth();
   const { toast } = useToast();
+  const [dialogOpen, setDialogOpen] = useState(false);
+
   const form = useForm({
     resolver: zodResolver(insertHabitSchema),
     defaultValues: {
@@ -42,6 +43,7 @@ export default function HomePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/habits"] });
       form.reset();
+      setDialogOpen(false); // Close dialog after successful creation
     },
   });
 
@@ -95,7 +97,7 @@ export default function HomePage() {
       <main className="container mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-8">
           <h2 className="text-3xl font-bold">Your Habits</h2>
-          <Dialog>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button>
                 <Plus className="h-4 w-4 mr-2" />
