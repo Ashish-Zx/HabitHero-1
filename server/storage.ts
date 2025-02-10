@@ -75,7 +75,7 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(completions)
       .where(eq(completions.habitId, habitId))
-      .where(eq(completions.date, today));
+      .where(eq(completions.date, today.toISOString().split('T')[0]));
 
     if (existingCompletion) {
       return existingCompletion;
@@ -87,31 +87,62 @@ export class DatabaseStorage implements IStorage {
       .values({
         habitId,
         userId,
-        date: today,
+        date: today.toISOString().split('T')[0],
       })
       .returning();
 
-    // Update streak
+    // Get habit details
     const habit = await this.getHabitById(habitId);
-    if (habit) {
+    if (!habit) {
+      throw new Error("Habit not found");
+    }
+
+    // Calculate streak
+    const completionHistory = await db
+      .select()
+      .from(completions)
+      .where(eq(completions.habitId, habitId))
+      .orderBy(completions.date);
+
+    let currentStreak = 0;
+    let bestStreak = habit.bestStreak;
+
+    if (completionHistory.length > 0) {
+      // Sort completions by date
+      const dates = completionHistory.map(c => new Date(c.date));
+      dates.sort((a, b) => a.getTime() - b.getTime());
+
+      // Calculate current streak
+      currentStreak = 1; // Start with today's completion
       const yesterday = new Date(today);
       yesterday.setDate(yesterday.getDate() - 1);
 
-      const [yesterdayCompletion] = await db
-        .select()
-        .from(completions)
-        .where(eq(completions.habitId, habitId))
-        .where(eq(completions.date, yesterday));
+      for (let i = dates.length - 2; i >= 0; i--) {
+        const currentDate = dates[i];
+        const nextDate = dates[i + 1];
 
-      const newStreak = yesterdayCompletion ? habit.currentStreak + 1 : 1;
-      await db
-        .update(habits)
-        .set({
-          currentStreak: newStreak,
-          bestStreak: Math.max(habit.bestStreak, newStreak),
-        })
-        .where(eq(habits.id, habitId));
+        // Check if dates are consecutive
+        const diffInDays = Math.floor((nextDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24));
+
+        if (diffInDays === 1) {
+          currentStreak++;
+        } else {
+          break;
+        }
+      }
+
+      // Update best streak if current streak is higher
+      bestStreak = Math.max(bestStreak, currentStreak);
     }
+
+    // Update habit streaks
+    await db
+      .update(habits)
+      .set({
+        currentStreak,
+        bestStreak,
+      })
+      .where(eq(habits.id, habitId));
 
     return completion;
   }
