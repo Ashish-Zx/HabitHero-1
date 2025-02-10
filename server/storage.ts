@@ -1,8 +1,12 @@
 import type { User, InsertUser, Habit, Completion } from "@shared/schema";
+import { users, habits, completions } from "@shared/schema";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 import session from "express-session";
-import createMemoryStore from "memorystore";
+import connectPg from "connect-pg-simple";
+import { pool } from "./db";
 
-const MemoryStore = createMemoryStore(session);
+const PostgresSessionStore = connectPg(session);
 
 export interface IStorage {
   sessionStore: session.Store;
@@ -15,59 +19,49 @@ export interface IStorage {
   completeHabit(habitId: number, userId: number): Promise<Completion>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private habits: Map<number, Habit>;
-  private completions: Map<number, Completion>;
+export class DatabaseStorage implements IStorage {
   sessionStore: session.Store;
-  currentId: number;
 
   constructor() {
-    this.users = new Map();
-    this.habits = new Map();
-    this.completions = new Map();
-    this.currentId = 1;
-    this.sessionStore = new MemoryStore({
-      checkPeriod: 86400000,
+    this.sessionStore = new PostgresSessionStore({
+      pool,
+      createTableIfMissing: true,
     });
   }
 
   async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.currentId++;
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
+    const [user] = await db.insert(users).values(insertUser).returning();
     return user;
   }
 
   async getHabitById(id: number): Promise<Habit | undefined> {
-    return this.habits.get(id);
+    const [habit] = await db.select().from(habits).where(eq(habits.id, id));
+    return habit;
   }
 
   async getHabitsByUserId(userId: number): Promise<Habit[]> {
-    return Array.from(this.habits.values()).filter(
-      (habit) => habit.userId === userId,
-    );
+    return db.select().from(habits).where(eq(habits.userId, userId));
   }
 
   async createHabit(habit: Omit<Habit, "id" | "currentStreak" | "bestStreak">): Promise<Habit> {
-    const id = this.currentId++;
-    const newHabit: Habit = {
-      ...habit,
-      id,
-      currentStreak: 0,
-      bestStreak: 0,
-    };
-    this.habits.set(id, newHabit);
+    const [newHabit] = await db
+      .insert(habits)
+      .values({
+        ...habit,
+        currentStreak: 0,
+        bestStreak: 0,
+      })
+      .returning();
     return newHabit;
   }
 
@@ -75,13 +69,26 @@ export class MemStorage implements IStorage {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const completion: Completion = {
-      id: this.currentId++,
-      habitId,
-      userId,
-      date: today,
-    };
-    this.completions.set(completion.id, completion);
+    // Check for existing completion
+    const [existingCompletion] = await db
+      .select()
+      .from(completions)
+      .where(eq(completions.habitId, habitId))
+      .where(eq(completions.date, today));
+
+    if (existingCompletion) {
+      return existingCompletion;
+    }
+
+    // Create new completion
+    const [completion] = await db
+      .insert(completions)
+      .values({
+        habitId,
+        userId,
+        date: today,
+      })
+      .returning();
 
     // Update streak
     const habit = await this.getHabitById(habitId);
@@ -89,31 +96,24 @@ export class MemStorage implements IStorage {
       const yesterday = new Date(today);
       yesterday.setDate(yesterday.getDate() - 1);
 
-      const hasYesterdayCompletion = Array.from(this.completions.values()).some(
-        (c) =>
-          c.habitId === habitId &&
-          c.date.getTime() === yesterday.getTime()
-      );
+      const [yesterdayCompletion] = await db
+        .select()
+        .from(completions)
+        .where(eq(completions.habitId, habitId))
+        .where(eq(completions.date, yesterday));
 
-      const hasTodayCompletion = Array.from(this.completions.values()).some(
-        (c) =>
-          c.habitId === habitId &&
-          c.date.getTime() === today.getTime()
-      );
-
-      if (!hasTodayCompletion) {
-        const newStreak = hasYesterdayCompletion ? habit.currentStreak + 1 : 1;
-        const updatedHabit: Habit = {
-          ...habit,
+      const newStreak = yesterdayCompletion ? habit.currentStreak + 1 : 1;
+      await db
+        .update(habits)
+        .set({
           currentStreak: newStreak,
           bestStreak: Math.max(habit.bestStreak, newStreak),
-        };
-        this.habits.set(habitId, updatedHabit);
-      }
+        })
+        .where(eq(habits.id, habitId));
     }
 
     return completion;
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
