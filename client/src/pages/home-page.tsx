@@ -15,6 +15,9 @@ import { HabitCard } from "@/components/habit-card";
 import { StreakChart } from "@/components/streak-chart";
 import { useToast } from "@/hooks/use-toast";
 import { ThemeToggle } from "@/components/theme-toggle";
+import * as z from 'zod';
+import {Habit} from "@shared/types"
+
 
 export default function HomePage() {
   const { user, logoutMutation } = useAuth();
@@ -27,12 +30,12 @@ export default function HomePage() {
     },
   });
 
-  const { data: habits = [] } = useQuery({
+  const { data: habits = [] } = useQuery<Habit[]>({
     queryKey: ["/api/habits"],
   });
 
   const createHabitMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: z.infer<typeof insertHabitSchema>) => {
       const res = await apiRequest("POST", "/api/habits", data);
       return res.json();
     },
