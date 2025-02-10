@@ -56,6 +56,19 @@ export default function HomePage() {
     },
   });
 
+  const deleteHabitMutation = useMutation({
+    mutationFn: async (habitId: number) => {
+      await apiRequest("DELETE", `/api/habits/${habitId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/habits"] });
+      toast({
+        title: "Habit deleted",
+        description: "The habit has been successfully deleted.",
+      });
+    },
+  });
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b">
@@ -157,6 +170,7 @@ export default function HomePage() {
                   key={habit.id}
                   habit={habit}
                   onComplete={() => completeHabitMutation.mutate(habit.id)}
+                  onDelete={() => deleteHabitMutation.mutate(habit.id)}
                 />
               ))}
             </div>

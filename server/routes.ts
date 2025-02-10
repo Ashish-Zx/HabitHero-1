@@ -28,19 +28,33 @@ export function registerRoutes(app: Express): Server {
     res.status(201).json(habit);
   });
 
+  // Delete habit
+  app.delete("/api/habits/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const habitId = parseInt(req.params.id);
+    const habit = await storage.getHabitById(habitId);
+
+    if (!habit || habit.userId !== req.user.id) {
+      return res.sendStatus(404);
+    }
+
+    await storage.deleteHabit(habitId);
+    res.sendStatus(204);
+  });
+
   // Complete habit for today
   app.post("/api/habits/:id/complete", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
     const habitId = parseInt(req.params.id);
     const habit = await storage.getHabitById(habitId);
-    
+
     if (!habit || habit.userId !== req.user.id) {
       return res.sendStatus(404);
     }
 
     const completion = await storage.completeHabit(habitId, req.user.id);
     const updatedHabit = await storage.getHabitById(habitId);
-    
+
     const motivation = await generateMotivationalMessage(
       habit.name,
       updatedHabit!.currentStreak,

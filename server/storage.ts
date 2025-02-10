@@ -17,6 +17,7 @@ export interface IStorage {
   getHabitsByUserId(userId: number): Promise<Habit[]>;
   createHabit(habit: Omit<Habit, "id" | "currentStreak" | "bestStreak">): Promise<Habit>;
   completeHabit(habitId: number, userId: number): Promise<Completion>;
+  deleteHabit(habitId: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -113,6 +114,10 @@ export class DatabaseStorage implements IStorage {
     }
 
     return completion;
+  }
+
+  async deleteHabit(habitId: number): Promise<void> {
+    await db.delete(habits).where(eq(habits.id, habitId));
   }
 }
 
