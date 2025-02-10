@@ -6,24 +6,24 @@ export function ThemeToggle() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
 
   useEffect(() => {
-    // Check localStorage first
-    const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    // Initialize theme from localStorage or system preference
+    const storedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
+    const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    const currentTheme = storedTheme || systemTheme;
 
-    // Use saved theme or system preference
-    const initialTheme = savedTheme ?? (prefersDark ? "dark" : "light");
-    setTheme(initialTheme);
-
-    // Apply initial theme
-    document.documentElement.classList.toggle("dark", initialTheme === "dark");
+    setTheme(currentTheme);
+    document.documentElement.classList.toggle("dark", currentTheme === "dark");
   }, []);
 
-  function toggleTheme() {
-    const newTheme = theme === "light" ? "dark" : "light";
+  const toggleTheme = () => {
+    const newTheme = theme === "dark" ? "light" : "dark";
     setTheme(newTheme);
-    document.documentElement.classList.toggle("dark");
+
+    // Remove both classes first then add the correct one
+    document.documentElement.classList.remove("light", "dark");
+    document.documentElement.classList.add(newTheme);
     localStorage.setItem("theme", newTheme);
-  }
+  };
 
   return (
     <Button variant="ghost" size="icon" onClick={toggleTheme}>
