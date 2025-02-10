@@ -14,6 +14,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { HabitCard } from "@/components/habit-card";
 import { StreakChart } from "@/components/streak-chart";
 import { useToast } from "@/hooks/use-toast";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function HomePage() {
   const { user, logoutMutation } = useAuth();
@@ -62,6 +63,7 @@ export default function HomePage() {
           <h1 className="text-2xl font-bold">Habit Tracker</h1>
           <div className="flex items-center gap-4">
             <span>Welcome, {user?.username}!</span>
+            <ThemeToggle />
             <Button
               variant="outline"
               size="sm"

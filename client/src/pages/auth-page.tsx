@@ -9,6 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { insertUserSchema } from "@shared/schema";
 import { Redirect } from "wouter";
 import { Loader2 } from "lucide-react";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function AuthPage() {
   const { user, loginMutation, registerMutation } = useAuth();
@@ -35,7 +36,10 @@ export default function AuthPage() {
 
   return (
     <div className="min-h-screen grid lg:grid-cols-2">
-      <div className="flex items-center justify-center p-8">
+      <div className="flex items-center justify-center p-8 relative">
+        <div className="absolute top-4 right-4">
+          <ThemeToggle />
+        </div>
         <Card className="w-full max-w-md">
           <CardContent className="pt-6">
             <Tabs defaultValue="login">
