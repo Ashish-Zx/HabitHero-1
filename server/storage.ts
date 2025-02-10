@@ -38,6 +38,13 @@ class DatabaseStorage {
       .where(eq(habits.userId, userId));
     return result;
   }
+
+  async createHabit(habit: { name: string; frequency: 'daily' | 'weekly'; userId: number }): Promise<Habit> {
+    const [result] = await db.insert(habits)
+      .values(habit)
+      .returning();
+    return result;
+  }
 }
 
 export const storage = new DatabaseStorage();
