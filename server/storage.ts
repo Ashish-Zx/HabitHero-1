@@ -108,23 +108,32 @@ export class DatabaseStorage implements IStorage {
     let bestStreak = habit.bestStreak;
 
     if (completionHistory.length > 0) {
-      // Sort completions by date
-      const dates = completionHistory.map(c => new Date(c.date));
-      dates.sort((a, b) => a.getTime() - b.getTime());
+      // Convert completions to dates and sort them
+      const dates = completionHistory.map(c => {
+        const date = new Date(c.date);
+        date.setHours(0, 0, 0, 0);
+        return date;
+      });
+      dates.sort((a, b) => b.getTime() - a.getTime()); // Sort in descending order (newest first)
 
       // Calculate current streak
       currentStreak = 1; // Start with today's completion
-      const yesterday = new Date(today);
-      yesterday.setDate(yesterday.getDate() - 1);
+      const todayTime = today.getTime();
 
-      for (let i = dates.length - 2; i >= 0; i--) {
+      for (let i = 0; i < dates.length - 1; i++) {
         const currentDate = dates[i];
+        const expectedPreviousDate = new Date(currentDate);
+        expectedPreviousDate.setDate(expectedPreviousDate.getDate() - 1);
+
         const nextDate = dates[i + 1];
 
-        // Check if dates are consecutive
-        const diffInDays = Math.floor((nextDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24));
+        // If this is today's completion, skip it as we've already counted it
+        if (currentDate.getTime() === todayTime) {
+          continue;
+        }
 
-        if (diffInDays === 1) {
+        // Check if dates are consecutive
+        if (expectedPreviousDate.getTime() === nextDate.getTime()) {
           currentStreak++;
         } else {
           break;
