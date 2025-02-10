@@ -1,41 +1,35 @@
-import { Database } from 'better-sqlite3';
-import SqliteStore from 'better-sqlite3-session-store';
 import session from 'express-session';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
+import pgSession from 'connect-pg-simple';
 import { eq } from 'drizzle-orm';
 import { users } from '@shared/schema';
 import type { User, InsertUser } from '@shared/schema';
+import { db, pool } from './db';
 
 class DatabaseStorage {
-  db: Database;
   sessionStore: session.Store;
 
   constructor() {
-    this.db = new Database('db.sqlite');
-    const Store = SqliteStore(session);
-    this.sessionStore = new Store({
-      client: this.db,
-      expired: {
-        clear: true,
-        intervalMs: 900000
-      }
+    const PostgresStore = pgSession(session);
+    this.sessionStore = new PostgresStore({
+      pool: pool,
+      tableName: 'session',
+      createTableIfMissing: true,
     });
   }
 
   async getUser(id: number): Promise<User | undefined> {
-    const db = drizzle(this.db);
-    return db.select().from(users).where(eq(users.id, id)).get();
+    const result = await db.select().from(users).where(eq(users.id, id));
+    return result[0];
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const db = drizzle(this.db);
-    return db.select().from(users).where(eq(users.username, username)).get();
+    const result = await db.select().from(users).where(eq(users.username, username));
+    return result[0];
   }
 
   async createUser(user: InsertUser): Promise<User> {
-    const db = drizzle(this.db);
-    const result = db.insert(users).values(user).run();
-    return { ...user, id: result.lastInsertRowid as number };
+    const [result] = await db.insert(users).values(user).returning();
+    return result;
   }
 }
 
