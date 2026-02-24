@@ -11,6 +11,7 @@ import { Redirect } from "wouter";
 import { Loader2 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 
+
 export default function AuthPage() {
   const { user, loginMutation, registerMutation } = useAuth();
 
@@ -74,7 +75,7 @@ export default function AuthPage() {
                       name="password"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Password</FormLabel>
+                          <FormLabel>Passwords</FormLabel>
                           <FormControl>
                             <Input type="password" {...field} />
                           </FormControl>
